@@ -5,10 +5,12 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function Header() {
   const pathname = usePathname();
   const { cartCount } = useCart();
+  const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
   const [navOpen, setNavOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -29,6 +31,16 @@ export default function Header() {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
+
+  // Get user initial for avatar
+  const userInitial = user?.name
+    ? user.name.charAt(0).toUpperCase()
+    : user?.email?.charAt(0).toUpperCase() || '?';
+
+  // Short display name for header
+  const displayName = user?.name
+    ? user.name.split(' ')[0]
+    : user?.email?.split('@')[0] || '';
 
   return (
     <header className={`site-header${scrolled ? ' scrolled' : ''}`}>
@@ -60,6 +72,36 @@ export default function Header() {
         </nav>
 
         <div className="header-actions">
+          {/* ── Auth Section ───────────────────────────── */}
+          {!authLoading && (
+            isAuthenticated ? (
+              /* Logged-in: show avatar + name + profile link */
+              <Link
+                href="/profile"
+                className="header-user-btn"
+                aria-label="Profile"
+                title="View Profile"
+              >
+                <span className="header-user-avatar">{userInitial}</span>
+                <span>{displayName}</span>
+              </Link>
+            ) : (
+              /* Logged-out: show login icon */
+              <Link
+                href="/login"
+                className="icon-btn"
+                aria-label="Login"
+                id="header-login-btn"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </Link>
+            )
+          )}
+
+          {/* ── Cart ───────────────────────────────────── */}
           <button className="icon-btn" aria-label="Cart">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h7.2a2 2 0 0 0 2-1.6L20 7H6" />

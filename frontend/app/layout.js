@@ -1,9 +1,11 @@
 import { CartProvider } from '../context/CartContext';
+import { AuthProvider } from '../context/AuthContext';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import Toast from '../components/Toast';
 import ScrollProgress from '../components/ScrollProgress';
 import '../styles/globals.css';
+import '../styles/auth.css';
 
 export const metadata = {
   title: 'Sigma Infotech — Used Laptops, Desktops & Printers | Mangalore',
@@ -16,16 +18,19 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body>
-        <CartProvider>
-          <Header />
-          {children}
-          <Footer />
-          <Toast />
-          <ScrollProgress />
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            <Header />
+            {children}
+            <Footer />
+            <Toast />
+            <ScrollProgress />
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );
 }
+

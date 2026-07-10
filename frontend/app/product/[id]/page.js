@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, use } from 'react';
 import { notFound } from 'next/navigation';
 import { useCart } from '../../../context/CartContext';
 import ProductCard from '../../../components/ProductCard';
@@ -27,7 +27,8 @@ function ProductIcon({ type, ...svgProps }) {
 }
 
 export default function ProductPage({ params }) {
-  const id = params.id;
+  const resolvedParams = use(params);
+  const id = resolvedParams.id;
   const product = PRODUCTS[id];
 
   // Show 404 for unknown product IDs
