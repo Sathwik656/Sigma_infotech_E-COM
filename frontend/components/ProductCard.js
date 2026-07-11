@@ -86,6 +86,7 @@ export default function ProductCard({
   grade,
   gradeClass = '',
   iconType = 'laptop',
+  rawPrice,
 }) {
   const { addToCart } = useCart();
   const Icon = ICON_MAP[iconType] || LaptopIcon;
@@ -114,7 +115,14 @@ export default function ProductCard({
             <button
               className="icon-cart-btn"
               aria-label={`Add ${name} to cart`}
-              onClick={() => addToCart(name)}
+              onClick={() => addToCart({
+                id,
+                name,
+                brand,
+                price: rawPrice,
+                price_formatted: price,
+                icon_type: iconType
+              })}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h7.2a2 2 0 0 0 2-1.6L20 7H6" />

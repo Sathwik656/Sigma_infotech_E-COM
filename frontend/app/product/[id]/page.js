@@ -1,12 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, use } from 'react';
+import { useState, use, useEffect } from 'react';
 import { notFound } from 'next/navigation';
 import { useCart } from '../../../context/CartContext';
 import ProductCard from '../../../components/ProductCard';
-import { PRODUCTS, PRODUCT_ICONS, RELATED_PRODUCTS } from '../../../lib/products';
+import { getProductBySlug, getRelatedProducts } from '../../../services/productService';
 import { useScrollReveal } from '../../../hooks/useScrollReveal';
+
+/* -----------------------------------------------------------------------
+   Product icon SVG paths — UI-only constants, not product data.
+   These remain on the frontend as they are pure rendering assets.
+   ----------------------------------------------------------------------- */
+const PRODUCT_ICONS = {
+  laptop:  '<rect x="6" y="6" width="78" height="46" rx="2"/><path d="M2 58h86l-6 8H8Z"/>',
+  desktop: '<rect x="10" y="4" width="34" height="62" rx="2"/><circle cx="27" cy="14" r="2"/><rect x="50" y="30" width="34" height="24" rx="1"/><path d="M58 62h20"/>',
+  printer: '<path d="M20 24V6h50v18"/><rect x="8" y="24" width="74" height="28" rx="2"/><rect x="22" y="52" width="46" height="12"/>',
+};
 
 /** Render the appropriate SVG icon for the product type */
 function ProductIcon({ type, ...svgProps }) {
@@ -26,22 +36,131 @@ function ProductIcon({ type, ...svgProps }) {
   );
 }
 
+/** Loading skeleton for the product detail layout */
+function ProductDetailSkeleton() {
+  return (
+    <div className="container product-detail" style={{ opacity: 0.4 }}>
+      <div>
+        <div className="gallery-main" />
+      </div>
+      <div>
+        <div style={{ background: 'var(--surface)', borderRadius: 4, height: 16, width: 120, marginBottom: 12 }} />
+        <div style={{ background: 'var(--surface)', borderRadius: 4, height: 28, marginBottom: 16 }} />
+        <div style={{ background: 'var(--surface)', borderRadius: 4, height: 20, width: 100, marginBottom: 16 }} />
+        <div style={{ background: 'var(--surface)', borderRadius: 4, height: 80, marginBottom: 16 }} />
+      </div>
+    </div>
+  );
+}
+
 export default function ProductPage({ params }) {
   const resolvedParams = use(params);
-  const id = resolvedParams.id;
-  const product = PRODUCTS[id];
+  const slug = resolvedParams.id; // route param is [id] but we use it as slug
 
-  // Show 404 for unknown product IDs
-  if (!product) notFound();
+  const [product, setProduct]           = useState(null);
+  const [relatedProducts, setRelated]   = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [notFoundError, setNotFound]    = useState(false);
 
   const { addToCart } = useCart();
-  const [qty, setQty] = useState(1);
-  const [activeThumb, setActiveThumb] = useState(0);
+  const [qty, setQty]                   = useState(1);
+  const [activeThumb, setActiveThumb]   = useState(0);
 
-  useScrollReveal();
+  useScrollReveal([product]);
+
+  // Fetch product + related on slug change
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchProduct() {
+      setLoading(true);
+      setNotFound(false);
+
+      try {
+        const [productRes, relatedRes] = await Promise.all([
+          getProductBySlug(slug),
+          getRelatedProducts(slug, 3),
+        ]);
+
+        if (!cancelled) {
+          setProduct(productRes.data);
+          setRelated(relatedRes);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          // 404 from server → trigger Next.js not-found
+          if (err?.response?.status === 404) {
+            setNotFound(true);
+          }
+          // For other errors we leave product as null — show a friendly message
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchProduct();
+    return () => { cancelled = true; };
+  }, [slug]);
+
+  // Trigger Next.js 404 page for unknown slugs
+  if (notFoundError) notFound();
+
+  // Loading state
+  if (loading) {
+    return (
+      <>
+        <div className="page-header">
+          <div className="container">
+            <div className="breadcrumb">
+              <Link href="/">Home</Link>
+              <span>/</span>
+              <Link href="/shop">Shop</Link>
+              <span>/</span>
+              <span>Loading…</span>
+            </div>
+            <h1>Loading…</h1>
+          </div>
+        </div>
+        <main>
+          <section>
+            <ProductDetailSkeleton />
+          </section>
+        </main>
+      </>
+    );
+  }
+
+  // Error state (fetch failed but not 404)
+  if (!product) {
+    return (
+      <>
+        <div className="page-header">
+          <div className="container">
+            <div className="breadcrumb">
+              <Link href="/">Home</Link>
+              <span>/</span>
+              <Link href="/shop">Shop</Link>
+            </div>
+            <h1>Product Unavailable</h1>
+          </div>
+        </div>
+        <main>
+          <section>
+            <div className="container">
+              <p style={{ color: 'var(--ink-faint)', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>
+                Could not load this product. Please try again or{' '}
+                <Link href="/shop">browse the shop</Link>.
+              </p>
+            </div>
+          </section>
+        </main>
+      </>
+    );
+  }
 
   // The product name before the dash
-  const shortName = product.title.split(' — ')[0];
+  const shortName = product.name.split(' — ')[0];
 
   return (
     <>
@@ -66,11 +185,11 @@ export default function ProductPage({ params }) {
             <div>
               <div className="gallery-main">
                 <span
-                  className={`grade-badge tag${product.gradeClass ? ' ' + product.gradeClass : ''}`}
+                  className={`grade-badge tag${product.grade_class ? ' ' + product.grade_class : ''}`}
                 >
                   {product.grade}
                 </span>
-                <ProductIcon type={product.icon} />
+                <ProductIcon type={product.icon_type} />
               </div>
               <div className="gallery-thumbs">
                 {[0, 1, 2, 3].map((i) => (
@@ -86,30 +205,34 @@ export default function ProductPage({ params }) {
             {/* ── PRODUCT INFO ───────────────────────────────── */}
             <div>
               <span className="pd-brand">{product.brand}</span>
-              <h2 className="pd-title">{product.title}</h2>
+              <h2 className="pd-title">{product.name}</h2>
 
               <div className="pd-price-row">
-                <span className="pd-price">{product.price}</span>
-                <span className="pd-price-old">{product.priceOld}</span>
+                <span className="pd-price">{product.price_formatted}</span>
+                {product.price_old_formatted && (
+                  <span className="pd-price-old">{product.price_old_formatted}</span>
+                )}
                 <span
-                  className={`grade-badge tag${product.gradeClass ? ' ' + product.gradeClass : ''}`}
+                  className={`grade-badge tag${product.grade_class ? ' ' + product.grade_class : ''}`}
                 >
                   {product.grade}
                 </span>
               </div>
 
-              <p className="pd-desc">{product.desc}</p>
+              <p className="pd-desc">{product.description}</p>
 
-              <table className="spec-table">
-                <tbody>
-                  {product.specs.map(([label, value]) => (
-                    <tr key={label}>
-                      <td>{label}</td>
-                      <td>{value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {Array.isArray(product.specifications) && product.specifications.length > 0 && (
+                <table className="spec-table">
+                  <tbody>
+                    {product.specifications.map(([label, value]) => (
+                      <tr key={label}>
+                        <td>{label}</td>
+                        <td>{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
 
               {/* Quantity control */}
               <div className="qty-row">
@@ -124,7 +247,7 @@ export default function ProductPage({ params }) {
                   <span>{qty}</span>
                   <button
                     aria-label="Increase quantity"
-                    onClick={() => setQty((q) => Math.min(9, q + 1))}
+                    onClick={() => setQty((q) => Math.min(product.stock ?? 9, q + 1))}
                   >
                     +
                   </button>
@@ -135,7 +258,14 @@ export default function ProductPage({ params }) {
               <div className="pd-actions">
                 <button
                   className="btn btn-copper"
-                  onClick={() => addToCart(shortName)}
+                  onClick={() => addToCart({
+                    id: product.slug,
+                    name: shortName,
+                    brand: product.brand,
+                    price: product.price,
+                    price_formatted: product.price_formatted,
+                    icon_type: product.icon_type
+                  }, qty)}
                 >
                   Add to Cart
                 </button>
@@ -166,24 +296,36 @@ export default function ProductPage({ params }) {
         </section>
 
         {/* ── RELATED PRODUCTS ─────────────────────────────── */}
-        <section style={{ paddingTop: 0 }}>
-          <div className="container">
-            <div className="section-head">
-              <div>
-                <span className="eyebrow">You may also like</span>
-                <h2>Similar laptops</h2>
+        {relatedProducts.length > 0 && (
+          <section style={{ paddingTop: 0 }}>
+            <div className="container">
+              <div className="section-head">
+                <div>
+                  <span className="eyebrow">You may also like</span>
+                  <h2>Similar {product.category}s</h2>
+                </div>
+                <Link href="/shop" className="view-all">
+                  View all&nbsp;→
+                </Link>
               </div>
-              <Link href="/shop" className="view-all">
-                View all&nbsp;→
-              </Link>
+              <div className="product-grid">
+                {relatedProducts.map((p) => (
+                  <ProductCard
+                    key={p.slug}
+                    id={p.slug}
+                    brand={p.brand}
+                    name={p.name}
+                    specs={p.specs_short}
+                    price={p.price_formatted}
+                    grade={p.grade}
+                    gradeClass={p.grade_class}
+                    iconType={p.icon_type}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="product-grid">
-              {RELATED_PRODUCTS.filter((p) => p.id !== id).slice(0, 3).map((p) => (
-                <ProductCard key={p.id} {...p} iconType="laptop" />
-              ))}
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
     </>
   );

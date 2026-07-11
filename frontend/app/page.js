@@ -1,14 +1,75 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import CategoryCard from '../components/CategoryCard';
 import ProductCard from '../components/ProductCard';
-import { FEATURED_PRODUCTS, CATEGORIES } from '../lib/products';
+import { getFeaturedProducts } from '../services/productService';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
+/** Homepage category cards — static UI metadata, not product data */
+const CATEGORIES = [
+  {
+    title: 'Used Laptops',
+    description: 'Business & student picks',
+    href: '/shop',
+    linkLabel: 'Browse →',
+    icon: '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M2 20h20"/>',
+  },
+  {
+    title: 'Used Desktops',
+    description: 'Tower & all-in-one',
+    href: '/shop',
+    linkLabel: 'Browse →',
+    icon: '<rect x="4" y="3" width="16" height="12" rx="1"/><path d="M9 19h6M12 15v4"/>',
+  },
+  {
+    title: 'Printers',
+    description: 'Inkjet & laser',
+    href: '/shop',
+    linkLabel: 'Browse →',
+    icon: '<path d="M6 9V3h12v6M6 18h12v3H6z"/><rect x="4" y="9" width="16" height="7" rx="1"/>',
+  },
+  {
+    title: 'Repair & Service',
+    description: 'Diagnostics, fixes, upgrades',
+    href: '/contact',
+    linkLabel: 'Book now →',
+    icon: '<path d="M14 3l-8 9h6l-2 9 9-11h-6l1-7Z"/>',
+  },
+  {
+    title: 'Accessories',
+    description: 'Chargers, bags, mice',
+    href: '/shop',
+    linkLabel: 'Browse →',
+    icon: '<rect x="3" y="14" width="18" height="4" rx="1"/><path d="M6 14v-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2M9 8h1M14 8h1"/>',
+  },
+];
+
 export default function HomePage() {
-  useScrollReveal();
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useScrollReveal([featuredProducts]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchFeatured() {
+      try {
+        const products = await getFeaturedProducts();
+        if (!cancelled) setFeaturedProducts(products);
+      } catch {
+        // Silently fall back to empty state — homepage should not crash
+        if (!cancelled) setFeaturedProducts([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchFeatured();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <main>
@@ -82,9 +143,38 @@ export default function HomePage() {
           </div>
 
           <div className="product-grid">
-            {FEATURED_PRODUCTS.map((p) => (
-              <ProductCard key={p.id} {...p} iconType="laptop" />
-            ))}
+            {loading ? (
+              /* Loading skeleton — same grid layout */
+              [1, 2, 3].map((i) => (
+                <div key={i} className="product-card" style={{ opacity: 0.4, pointerEvents: 'none' }}>
+                  <div className="product-thumb" />
+                  <div className="product-body">
+                    <span className="product-brand" style={{ background: 'var(--surface)', borderRadius: 4, width: 80, display: 'inline-block' }}>&nbsp;</span>
+                    <div className="product-name" style={{ background: 'var(--surface)', borderRadius: 4, height: 20, marginTop: 6 }} />
+                    <div className="product-specs" style={{ background: 'var(--surface)', borderRadius: 4, height: 14, marginTop: 8 }} />
+                  </div>
+                </div>
+              ))
+            ) : featuredProducts.length > 0 ? (
+              featuredProducts.map((p) => (
+                <ProductCard
+                  key={p.slug}
+                  id={p.slug}
+                  brand={p.brand}
+                  name={p.name}
+                  specs={p.specs_short}
+                  price={p.price_formatted}
+                  rawPrice={p.price}
+                  grade={p.grade}
+                  gradeClass={p.grade_class}
+                  iconType={p.icon_type}
+                />
+              ))
+            ) : (
+              <p style={{ color: 'var(--ink-faint)', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>
+                No featured products at the moment.
+              </p>
+            )}
           </div>
         </div>
       </section>

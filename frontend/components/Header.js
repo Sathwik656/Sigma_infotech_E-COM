@@ -102,14 +102,14 @@ export default function Header() {
           )}
 
           {/* ── Cart ───────────────────────────────────── */}
-          <button className="icon-btn" aria-label="Cart">
+          <Link href="/cart" className="icon-btn" aria-label="Cart">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h7.2a2 2 0 0 0 2-1.6L20 7H6" />
               <circle cx="9" cy="20" r="1.4" />
               <circle cx="17" cy="20" r="1.4" />
             </svg>
             <span className="cart-count">{cartCount}</span>
-          </button>
+          </Link>
 
           <button
             className="nav-toggle"

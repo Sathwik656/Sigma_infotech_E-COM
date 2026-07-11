@@ -56,7 +56,9 @@ export default function LoginPage() {
     const result = await login(formData.email, formData.password);
 
     if (result.success) {
-      router.push('/');
+      const params = new URLSearchParams(window.location.search);
+      const redirectUrl = params.get('redirect') || '/';
+      router.push(redirectUrl);
     } else {
       setServerError(result.message);
     }
