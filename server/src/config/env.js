@@ -23,12 +23,19 @@ function validateEnv() {
   }
 }
 
+const defaultOrigins = [
+  'http://localhost:3000', 
+  'https://sigma-infotech-e-com.vercel.app', 
+  'https://sigma-infotech-e-commerce.vercel.app'
+];
+const envOrigins = process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',').map(u => u.trim()) : [];
+
 module.exports = {
   validateEnv,
   PORT: process.env.PORT || 5000,
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:3000',
+  CLIENT_URL: [...new Set([...defaultOrigins, ...envOrigins])],
   NODE_ENV: process.env.NODE_ENV || 'development',
 };
