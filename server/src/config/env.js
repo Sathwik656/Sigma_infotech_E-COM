@@ -7,7 +7,6 @@ const REQUIRED_VARS = [
   'SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'CLIENT_URL',
-  'PORT',
 ];
 
 /**
