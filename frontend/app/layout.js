@@ -7,6 +7,12 @@ import ScrollProgress from '../components/ScrollProgress';
 import '../styles/globals.css';
 import '../styles/auth.css';
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
+
 export const metadata = {
   title: 'Sigma Infotech — Used Laptops, Desktops & Printers | Mangalore',
   description:
