@@ -346,59 +346,63 @@ section { padding-block: 64px; }
 /* ===================================================================
    Find Us / Location Section
    =================================================================== */
-.location-wrap { 
-  display: grid; 
-  grid-template-columns: 1fr 1fr; 
-  gap: 0; 
-  border: 1px solid var(--line); 
-  background: var(--surface);
-  box-shadow: 0 12px 32px -16px rgba(13,26,53,0.15);
-}
-
-.location-info { 
-  padding: 48px; 
-  background: var(--surface); 
+.map-card-container { 
   display: flex; 
   flex-direction: column; 
+  border: 1px solid var(--line); 
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px -16px rgba(13,26,53,0.15);
+  overflow: hidden;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.map-embed { width: 100%; height: 320px; }
+.map-embed iframe { width: 100%; height: 100%; border: 0; }
+
+.map-card-details {
+  padding: 40px 24px;
+  text-align: center;
+}
+.map-card-details h3 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  color: var(--navy);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.map-card-details p {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ink-dim);
+  margin-bottom: 24px;
+}
+.btn-map-solid {
+  background: var(--blue);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  gap: 28px; 
+  gap: 10px;
+  padding: 13px 26px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 13.5px;
+  letter-spacing: 1px;
+  border-radius: var(--radius);
+  text-transform: uppercase;
+  transition: opacity 0.2s, transform 0.2s;
+  border: none;
 }
-
-.location-info .addr-line { 
-  display: flex; 
-  gap: 16px; 
-  align-items: flex-start;
-  font-size: 14.5px; 
-  color: var(--ink-dim); 
-  line-height: 1.5;
+.btn-map-solid:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  color: #ffffff;
+  background: var(--blue-deep);
 }
-
-.location-info .icon-wrap svg {
-  width: 22px;
-  height: 22px;
-  color: var(--signal-deep);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.location-map { 
-  min-height: 400px; 
-  background: var(--surface-2); 
-  position: relative; 
-}
-
-.location-map iframe { 
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; 
-  height: 100%; 
-  border: 0; 
-}
-
-@media (max-width: 860px) {
-  .location-wrap { grid-template-columns: 1fr; }
-  .location-info { padding: 32px; }
-  .location-map { min-height: 320px; }
+.btn-map-solid svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* ===================================================================
