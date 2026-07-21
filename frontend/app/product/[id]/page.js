@@ -183,32 +183,70 @@ export default function ProductPage({ params }) {
 
             {/* ── GALLERY ────────────────────────────────────── */}
             <div>
-              <div className="gallery-main">
+              <div className="gallery-main" style={{ position: 'relative', overflow: 'hidden' }}>
                 <span
                   className={`grade-badge tag${product.grade_class ? ' ' + product.grade_class : ''}`}
+                  style={{ position: 'absolute', top: 12, left: 12, zIndex: 2 }}
                 >
                   {product.grade}
                 </span>
-                <ProductIcon type={product.icon_type} />
+                {(() => {
+                  const images = product.images || [];
+                  const allImages = product.thumbnail_url
+                    ? [{ url: product.thumbnail_url, is_primary: true }, ...images.filter(img => img.url !== product.thumbnail_url)]
+                    : images;
+                  const hasImages = allImages.length > 0;
+                  const currentImage = hasImages && allImages[activeThumb] ? allImages[activeThumb] : null;
+
+                  if (!hasImages) {
+                    return <ProductIcon type={product.icon_type} />;
+                  }
+
+                  return (
+                    <img
+                      src={currentImage?.url}
+                      alt={currentImage?.alt || product.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#f9f9f9' }}
+                    />
+                  );
+                })()}
               </div>
               <div className="gallery-thumbs">
-                {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className={`thumb-item${activeThumb === i ? ' active' : ''}`}
-                    onClick={() => setActiveThumb(i)}
-                  />
-                ))}
+                {(() => {
+                  const images = product.images || [];
+                  const allImages = product.thumbnail_url
+                    ? [{ url: product.thumbnail_url, is_primary: true }, ...images.filter(img => img.url !== product.thumbnail_url)]
+                    : images;
+
+                  if (allImages.length === 0) {
+                    return [0, 1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className={`thumb-item${activeThumb === i ? ' active' : ''}`}
+                        onClick={() => setActiveThumb(i)}
+                      />
+                    ));
+                  }
+
+                  return allImages.map((img, i) => (
+                    <div
+                      key={img.id || i}
+                      className={`thumb-item${activeThumb === i ? ' active' : ''}`}
+                      onClick={() => setActiveThumb(i)}
+                      style={{ backgroundImage: `url(${img.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                    />
+                  ));
+                })()}
               </div>
             </div>
 
             {/* ── PRODUCT INFO ───────────────────────────────── */}
             <div>
-              <span className="pd-brand">{product.brand}</span>
+              <span className="pd-brand">{typeof product.brand === 'object' ? product.brand?.name : product.brand}</span>
               <h2 className="pd-title">{product.name}</h2>
 
               <div className="pd-price-row">
-                <span className="pd-price">{product.price_formatted}</span>
+                <span className="pd-price">{product.price_formatted || (product.price ? `₹${Number(product.price).toLocaleString('en-IN')}` : '')}</span>
                 {product.price_old_formatted && (
                   <span className="pd-price-old">{product.price_old_formatted}</span>
                 )}
@@ -259,11 +297,11 @@ export default function ProductPage({ params }) {
                 <button
                   className="btn btn-copper"
                   onClick={() => addToCart({
-                    id: product.slug,
+                    id: product.id,
                     name: shortName,
-                    brand: product.brand,
+                    brand: typeof product.brand === 'object' ? product.brand?.name : product.brand,
                     price: product.price,
-                    price_formatted: product.price_formatted,
+                    price_formatted: product.price_formatted || (product.price ? `₹${Number(product.price).toLocaleString('en-IN')}` : ''),
                     icon_type: product.icon_type
                   }, qty)}
                 >
@@ -302,7 +340,7 @@ export default function ProductPage({ params }) {
               <div className="section-head">
                 <div>
                   <span className="eyebrow">You may also like</span>
-                  <h2>Similar {product.category}s</h2>
+                  <h2>Similar {typeof product.category === 'object' ? product.category?.name : product.category}s</h2>
                 </div>
                 <Link href="/shop" className="view-all">
                   View all&nbsp;→
@@ -313,13 +351,16 @@ export default function ProductPage({ params }) {
                   <ProductCard
                     key={p.slug}
                     id={p.slug}
+                    productId={p.id}
                     brand={p.brand}
                     name={p.name}
                     specs={p.specs_short}
-                    price={p.price_formatted}
+                    price={p.price_formatted || (p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : '')}
+                    rawPrice={p.price}
                     grade={p.grade}
                     gradeClass={p.grade_class}
                     iconType={p.icon_type}
+                    imageUrl={p.thumbnail_url || (Array.isArray(p.images) && p.images.length > 0 ? p.images.find(img => img.is_primary)?.url || p.images[0]?.url : null)}
                   />
                 ))}
               </div>

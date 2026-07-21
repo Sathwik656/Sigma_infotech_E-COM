@@ -79,6 +79,7 @@ const ICON_MAP = {
  */
 export default function ProductCard({
   id,
+  productId,
   brand,
   name,
   specs,
@@ -87,18 +88,28 @@ export default function ProductCard({
   gradeClass = '',
   iconType = 'laptop',
   rawPrice,
+  imageUrl,
 }) {
   const { addToCart } = useCart();
   const Icon = ICON_MAP[iconType] || LaptopIcon;
+  const brandName = typeof brand === 'object' ? brand?.name : brand;
 
   return (
     <div className="product-card">
       <div className="product-thumb">
         <span className={`grade-badge tag${gradeClass ? ' ' + gradeClass : ''}`}>{grade}</span>
-        <Icon />
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }}
+          />
+        ) : (
+          <Icon />
+        )}
       </div>
       <div className="product-body">
-        <span className="product-brand">{brand}</span>
+        <span className="product-brand">{brandName}</span>
         <h3 className="product-name">{name}</h3>
         <p className="product-specs">{specs}</p>
         <div className="product-footer">
@@ -116,9 +127,9 @@ export default function ProductCard({
               className="icon-cart-btn"
               aria-label={`Add ${name} to cart`}
               onClick={() => addToCart({
-                id,
+                id: productId || id,
                 name,
-                brand,
+                brand: brandName,
                 price: rawPrice,
                 price_formatted: price,
                 icon_type: iconType

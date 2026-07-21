@@ -58,6 +58,7 @@ export default function ShopPage() {
 
     if (sortBy === 'price-asc')  result = [...result].sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
     if (sortBy === 'price-desc') result = [...result].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+    if (sortBy === 'newest') result = [...result].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     return result;
   }, [allProducts, categories, conditions, maxPrice, sortBy]);
@@ -187,14 +188,16 @@ export default function ShopPage() {
                       <ProductCard
                         key={p.slug}
                         id={p.slug}
+                        productId={p.id}
                         brand={p.brand}
                         name={p.name}
                         specs={p.specs_short}
-                        price={p.price_formatted}
+                        price={p.price_formatted || (p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : '')}
                         rawPrice={p.price}
                         grade={p.grade}
                         gradeClass={p.grade_class}
                         iconType={p.icon_type}
+                        imageUrl={p.thumbnail_url || (Array.isArray(p.images) && p.images.length > 0 ? p.images.find(img => img.is_primary)?.url || p.images[0]?.url : null)}
                       />
                     ))}
                   </div>

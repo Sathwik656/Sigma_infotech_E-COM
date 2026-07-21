@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 
 /* -------------------------------------------------------
    Zod Validation Schema
@@ -42,6 +43,7 @@ function EyeIcon({ open }) {
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const { syncCart } = useCart();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState('');
 
@@ -56,9 +58,16 @@ export default function LoginPage() {
     const result = await login(formData.email, formData.password);
 
     if (result.success) {
+      await syncCart();
       const params = new URLSearchParams(window.location.search);
-      const redirectUrl = params.get('redirect') || '/';
-      router.push(redirectUrl);
+      const redirectUrl = params.get('redirect');
+      if (redirectUrl) {
+        router.push(redirectUrl);
+      } else if (result.user?.role === 'admin') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/');
+      }
     } else {
       setServerError(result.message);
     }

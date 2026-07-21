@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import * as authService from '../services/auth';
+import api from '@/lib/axios';
 
 /* -------------------------------------------------------
    Context Definition
@@ -43,7 +44,8 @@ function getStoredUser() {
 export function AuthProvider({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // true during initial session restore
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   /* ----------------------------------------------------
@@ -59,17 +61,17 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // Optimistically show stored user, then verify with backend
       setUser(storedUser);
 
       try {
         const data = await authService.getMe();
         setUser(data.user);
+        setProfile(data.user);
         localStorage.setItem(USER_KEY, JSON.stringify(data.user));
       } catch {
-        // Token is invalid/expired — clear everything
         clearSession();
         setUser(null);
+        setProfile(null);
       } finally {
         setLoading(false);
       }
@@ -85,9 +87,12 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       const data = await authService.login({ email, password });
-      saveSession(data.access_token, data.refresh_token, data.user);
-      setUser(data.user);
-      return { success: true };
+      const userData = data.user;
+      saveSession(data.access_token, data.refresh_token, userData);
+      setUser(userData);
+      setProfile(userData);
+
+      return { success: true, user: userData };
     } catch (err) {
       const message =
         err.response?.data?.message || err.message || 'Login failed. Please try again.';
@@ -105,7 +110,6 @@ export function AuthProvider({ children }) {
       const data = await authService.register({ name, email, password });
       return { success: true, requiresConfirmation: data.requiresConfirmation };
     } catch (err) {
-      // Handle validation errors array
       if (err.response?.data?.errors?.length) {
         const message = err.response.data.errors[0].message;
         setError(message);
@@ -125,27 +129,70 @@ export function AuthProvider({ children }) {
     try {
       await authService.logout();
     } catch {
-      // Best-effort — clear local session regardless
+      // Best-effort
     } finally {
       clearSession();
       setUser(null);
+      setProfile(null);
       router.push('/login');
     }
   }, [router]);
+
+  /* ----------------------------------------------------
+     Update Profile Action
+     ---------------------------------------------------- */
+  const updateProfile = useCallback(async (data) => {
+    setError(null);
+    try {
+      const response = await api.patch('/api/profile', data);
+      const updatedUser = response.data.user || response.data;
+      setProfile(updatedUser);
+      setUser(updatedUser);
+      localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+      return { success: true };
+    } catch (err) {
+      const message =
+        err.response?.data?.message || err.message || 'Failed to update profile.';
+      setError(message);
+      return { success: false, message };
+    }
+  }, []);
+
+  /* ----------------------------------------------------
+     Refresh User — re-fetch from /api/auth/me
+     ---------------------------------------------------- */
+  const refreshUser = useCallback(async () => {
+    try {
+      const data = await authService.getMe();
+      setUser(data.user);
+      setProfile(data.user);
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    } catch {
+      clearSession();
+      setUser(null);
+      setProfile(null);
+    }
+  }, []);
 
   /* ----------------------------------------------------
      Clear error helper
      ---------------------------------------------------- */
   const clearError = useCallback(() => setError(null), []);
 
+  const isAdmin = useMemo(() => user?.role === 'admin', [user]);
+
   const value = {
     user,
+    profile,
+    isAdmin,
     loading,
     error,
     isAuthenticated: !!user,
     login,
     register,
     logout,
+    updateProfile,
+    refreshUser,
     clearError,
   };
 

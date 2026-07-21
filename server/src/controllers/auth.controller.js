@@ -1,6 +1,7 @@
 'use strict';
 
 const authService = require('../services/auth.service');
+const userService = require('../services/user.service');
 
 /**
  * POST /api/auth/register
@@ -24,6 +25,14 @@ async function register(req, res, next) {
             id: result.user.id,
             email: result.user.email,
             name: result.user.user_metadata?.full_name || '',
+          }
+        : null,
+      profile: result.userRow
+        ? {
+            id: result.userRow.id,
+            full_name: result.userRow.full_name,
+            email: result.userRow.email,
+            role: result.userRow.role,
           }
         : null,
     });
@@ -82,10 +91,20 @@ async function logout(req, res, next) {
  */
 async function getMe(req, res, next) {
   try {
-    // req.user is attached by auth.middleware
+    const profile = await userService.getByAuthUserId(req.user.authUserId);
+
     res.status(200).json({
       success: true,
-      user: req.user,
+      user: {
+        id: req.user.id,
+        authUserId: req.user.authUserId,
+        email: req.user.email,
+        name: req.user.name,
+        role: req.user.role,
+        createdAt: req.user.createdAt,
+        emailConfirmed: req.user.emailConfirmed,
+      },
+      profile,
     });
   } catch (err) {
     next(err);

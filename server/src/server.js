@@ -9,7 +9,7 @@ validateEnv();
 const app = require('./app');
 
 const server = app.listen(PORT, () => {
-  console.log(`\n🚀 Sigma Infotech API running on http://localhost:${PORT}`);
+  console.log(`\n Sigma Infotech API running on http://localhost:${PORT}`);
   console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
   console.log(`   Health check: http://localhost:${PORT}/health\n`);
 });

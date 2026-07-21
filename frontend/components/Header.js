@@ -9,8 +9,8 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Header() {
   const pathname = usePathname();
-  const { cartCount } = useCart();
-  const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
+  const { itemCount } = useCart();
+  const { user, isAuthenticated, isAdmin, logout, loading: authLoading } = useAuth();
   const [navOpen, setNavOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -69,6 +69,11 @@ export default function Header() {
           <Link href="/contact" className={isActive('/contact') ? 'active' : ''}>
             Contact &amp; Repair
           </Link>
+          {isAdmin && (
+            <Link href="/admin/dashboard" className={isActive('/admin') ? 'active' : ''}>
+              Admin
+            </Link>
+          )}
         </nav>
 
         <div className="header-actions">
@@ -108,7 +113,7 @@ export default function Header() {
               <circle cx="9" cy="20" r="1.4" />
               <circle cx="17" cy="20" r="1.4" />
             </svg>
-            <span className="cart-count">{cartCount}</span>
+            <span className="cart-count">{itemCount || ''}</span>
           </Link>
 
           <button

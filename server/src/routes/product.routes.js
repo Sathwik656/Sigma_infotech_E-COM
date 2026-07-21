@@ -3,6 +3,8 @@
 const { Router } = require('express');
 const { body, query } = require('express-validator');
 const productController = require('../controllers/product.controller');
+const imageController = require('../controllers/image.controller');
+const upload = require('../middleware/upload.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/admin.middleware');
 const { validate } = require('../middleware/validate.middleware');
@@ -117,5 +119,21 @@ router.put('/:id', authenticate, requireAdmin, updateProductRules, validate, pro
 
 // DELETE /api/products/:id
 router.delete('/:id', authenticate, requireAdmin, productController.remove);
+
+/* -----------------------------------------------------------------------
+   Image Management Routes (admin only)
+   ----------------------------------------------------------------------- */
+
+// GET /api/products/:id/images
+router.get('/:id/images', imageController.list);
+
+// POST /api/products/:id/images — upload single image
+router.post('/:id/images', authenticate, requireAdmin, upload.single('image'), imageController.upload);
+
+// PUT /api/products/:id/images/:imageId/primary — set as primary
+router.put('/:id/images/:imageId/primary', authenticate, requireAdmin, imageController.setPrimary);
+
+// DELETE /api/products/:id/images/:imageId
+router.delete('/:id/images/:imageId', authenticate, requireAdmin, imageController.remove);
 
 module.exports = router;

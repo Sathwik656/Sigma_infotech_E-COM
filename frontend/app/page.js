@@ -160,14 +160,16 @@ export default function HomePage() {
                 <ProductCard
                   key={p.slug}
                   id={p.slug}
+                  productId={p.id}
                   brand={p.brand}
                   name={p.name}
                   specs={p.specs_short}
-                  price={p.price_formatted}
+                  price={p.price_formatted || (p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : '')}
                   rawPrice={p.price}
                   grade={p.grade}
                   gradeClass={p.grade_class}
                   iconType={p.icon_type}
+                  imageUrl={p.thumbnail_url || (Array.isArray(p.images) && p.images.length > 0 ? p.images.find(img => img.is_primary)?.url || p.images[0]?.url : null)}
                 />
               ))
             ) : (

@@ -6,12 +6,14 @@ const { supabaseAdmin } = require('../config/supabase');
  * Authentication Middleware
  *
  * Reads the `Authorization: Bearer <token>` header, verifies the JWT
- * against Supabase, and attaches the decoded user to `req.user`.
+ * against Supabase, looks up the corresponding public.users row,
+ * and attaches both auth and profile data to `req.user`.
  *
  * Returns 401 if:
  *  - No Authorization header is present
  *  - Token format is invalid
  *  - Token is expired or tampered
+ *  - User has no corresponding row in public.users
  */
 async function authenticate(req, res, next) {
   try {
@@ -43,14 +45,31 @@ async function authenticate(req, res, next) {
       });
     }
 
+    // Look up the corresponding row in public.users
+    const { data: userRow, error: userErr } = await supabaseAdmin
+      .from('users')
+      .select('id, role, status')
+      .eq('auth_user_id', data.user.id)
+      .single();
+
+    if (userErr || !userRow) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. User profile not found.',
+      });
+    }
+
     // Attach clean user object to request
     req.user = {
-      id: data.user.id,
+      id: userRow.id,                            // public.users.id (for DB queries)
+      authUserId: data.user.id,                  // auth.users.id
       email: data.user.email,
       name:
         data.user.user_metadata?.full_name ||
         data.user.user_metadata?.name ||
         '',
+      role: userRow.role,
+      status: userRow.status,
       createdAt: data.user.created_at,
       emailConfirmed: !!data.user.email_confirmed_at,
     };

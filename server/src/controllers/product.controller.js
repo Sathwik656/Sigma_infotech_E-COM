@@ -1,6 +1,8 @@
 'use strict';
 
 const productService = require('../services/product.service');
+const categoryService = require('../services/category.service');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 /* -----------------------------------------------------------------------
    Product Controller
@@ -22,8 +24,6 @@ const productService = require('../services/product.service');
 async function getAll(req, res, next) {
   try {
     const {
-      page = 1,
-      limit = 20,
       category,
       condition,
       search,
@@ -31,13 +31,21 @@ async function getAll(req, res, next) {
       sort = 'relevance',
     } = req.query;
 
-    const parsedPage  = Math.max(1, parseInt(page, 10)  || 1);
-    const parsedLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const { page, limit, offset } = parsePagination(req.query);
+
+    // Resolve category slug to category_id if provided
+    let categoryId = null;
+    if (category) {
+      const categoryRow = await categoryService.getBySlug(category);
+      if (categoryRow) {
+        categoryId = categoryRow.id;
+      }
+    }
 
     const { products, total } = await productService.getAllProducts({
-      page: parsedPage,
-      limit: parsedLimit,
-      category,
+      page,
+      limit,
+      category: categoryId,
       condition,
       search,
       featured,
@@ -47,12 +55,7 @@ async function getAll(req, res, next) {
     return res.status(200).json({
       success: true,
       data: products,
-      pagination: {
-        page: parsedPage,
-        limit: parsedLimit,
-        total,
-        totalPages: Math.ceil(total / parsedLimit),
-      },
+      pagination: buildPaginationMeta(page, limit, total),
     });
   } catch (err) {
     next(err);
@@ -134,7 +137,7 @@ async function getRelated(req, res, next) {
     }
 
     const related = await productService.getRelatedProducts(
-      product.category,
+      product.category_id,
       slug,
       Math.min(10, parseInt(limit, 10) || 3)
     );

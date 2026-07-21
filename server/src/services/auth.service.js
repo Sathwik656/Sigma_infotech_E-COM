@@ -1,6 +1,7 @@
 'use strict';
 
 const { supabaseAnon, supabaseAdmin } = require('../config/supabase');
+const userService = require('./user.service');
 
 /**
  * Register a new user via Supabase Auth.
@@ -23,9 +24,28 @@ async function registerUser(name, email, password) {
 
   if (error) throw error;
 
-  // Supabase may return a user but no session if email confirmation is required
+  // If Supabase created the user, also create a row in public.users
+  let userRow = null;
+  if (data.user) {
+    try {
+      userRow = await userService.createUser({
+        authUserId: data.user.id,
+        email: data.user.email,
+        fullName: name,
+      });
+    } catch (err) {
+      // If user row already exists (e.g. re-registration attempt), fetch it
+      if (err.code === '23505') {
+        userRow = await userService.getByAuthUserId(data.user.id);
+      } else {
+        throw err;
+      }
+    }
+  }
+
   return {
     user: data.user,
+    userRow,
     session: data.session,
     requiresConfirmation: !data.session,
   };
@@ -49,11 +69,30 @@ async function loginUser(email, password) {
 
   const { user, session } = data;
 
+  // Look up the public.users row to get role (Supabase Auth doesn't store role)
+  let role = 'customer';
+  let publicUserId = null;
+  try {
+    const { data: userRow } = await supabaseAdmin
+      .from('users')
+      .select('id, role')
+      .eq('auth_user_id', user.id)
+      .single();
+    if (userRow) {
+      role = userRow.role || 'customer';
+      publicUserId = userRow.id;
+    }
+  } catch {
+    // Fallback to default customer role if lookup fails
+  }
+
   return {
     user: {
-      id: user.id,
+      id: publicUserId || user.id,
+      authUserId: user.id,
       email: user.email,
       name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+      role,
       createdAt: user.created_at,
     },
     access_token: session.access_token,

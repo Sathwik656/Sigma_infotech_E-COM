@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 
 /* -------------------------------------------------------
    Zod Validation Schema
@@ -54,6 +55,7 @@ function EyeIcon({ open }) {
 export default function RegisterPage() {
   const router = useRouter();
   const { register: registerUser } = useAuth();
+  const { syncCart } = useCart();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [serverError, setServerError] = useState('');
@@ -73,6 +75,7 @@ export default function RegisterPage() {
     const result = await registerUser(formData.name, formData.email, formData.password);
 
     if (result.success) {
+      await syncCart();
       if (result.requiresConfirmation) {
         setSuccess('Account created! Please check your email to confirm your account, then log in.');
         reset();
