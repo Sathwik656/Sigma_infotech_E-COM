@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import axiosInstance from '@/lib/axios';
 
 const TOKEN_KEY = 'sigma_access_token';
 const REFRESH_KEY = 'sigma_refresh_token';
@@ -37,17 +38,12 @@ export default function AuthCallbackPage() {
 
         if (!cancelled) setStatus('Verifying with server…');
 
-        // Call backend to complete OAuth login
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
-        const response = await fetch(`${backendUrl}/api/auth/oauth`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: accessToken }),
+        // Call backend to complete OAuth login (use axios instance for proper URL handling)
+        const { data } = await axiosInstance.post('/api/auth/oauth', {
+          access_token: accessToken,
         });
 
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
+        if (!data.success) {
           if (!cancelled) setError(data.message || 'OAuth login failed.');
           return;
         }
