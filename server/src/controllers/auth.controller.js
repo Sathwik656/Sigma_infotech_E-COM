@@ -138,4 +138,34 @@ async function refresh(req, res, next) {
   }
 }
 
-module.exports = { register, login, logout, getMe, refresh };
+/**
+ * POST /api/auth/oauth
+ * Completes the OAuth login flow.
+ * Receives the Supabase access_token from the frontend after OAuth redirect.
+ */
+async function oauthLogin(req, res, next) {
+  try {
+    const { access_token } = req.body;
+    if (!access_token) {
+      return res.status(400).json({
+        success: false,
+        message: 'access_token is required',
+      });
+    }
+
+    const data = await authService.oauthLoginUser(access_token);
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      user: data.user,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { register, login, logout, getMe, refresh, oauthLogin };

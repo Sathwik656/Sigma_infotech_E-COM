@@ -36,6 +36,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState(null);
 
   useEffect(() => {
     document.title = 'Checkout | Sigma Infotech';
@@ -58,10 +59,10 @@ export default function CheckoutPage() {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (cartInitialized && items.length === 0 && !authLoading && !submitting && !processingPayment) {
+    if (cartInitialized && items.length === 0 && !authLoading && !submitting && !processingPayment && !createdOrderId) {
       router.push('/cart');
     }
-  }, [cartInitialized, items.length, authLoading, submitting, processingPayment, router]);
+  }, [cartInitialized, items.length, authLoading, submitting, processingPayment, createdOrderId, router]);
 
   const fetchAddresses = useCallback(async () => {
     try {
@@ -112,15 +113,18 @@ export default function CheckoutPage() {
     setError('');
 
     try {
-      const orderData = await orderService.create({
-        addressId: selectedAddressId,
-        shippingCharge: shipping,
-        taxRate: 0,
-      });
-      const orderId = orderData.data?.id || orderData.order?.id || orderData.id;
+      let orderId = createdOrderId;
 
-      // Backend clears cart on order creation — sync frontend state
-      await fetchCart();
+      // Only create order if we don't already have one
+      if (!orderId) {
+        const orderData = await orderService.create({
+          addressId: selectedAddressId,
+          shippingCharge: shipping,
+          taxRate: 0,
+        });
+        orderId = orderData.data?.id || orderData.order?.id || orderData.id;
+        setCreatedOrderId(orderId);
+      }
 
       const amountInPaise = Math.round(grandTotal * 100);
       const paymentOrderData = await paymentService.createOrder({ orderId, amount: amountInPaise });
@@ -173,7 +177,6 @@ export default function CheckoutPage() {
           modal: {
             ondismiss: function () {
               setProcessingPayment(false);
-              setError('Payment was cancelled. Your order has been placed but not paid.');
               setSubmitting(false);
             },
           },
@@ -217,7 +220,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!isAuthenticated || (items.length === 0 && !submitting && !processingPayment)) {
+  if (!isAuthenticated || (items.length === 0 && !submitting && !processingPayment && !createdOrderId)) {
     return null;
   }
 
@@ -653,7 +656,9 @@ export default function CheckoutPage() {
                           ? 'Processing Payment...'
                           : submitting
                             ? 'Placing Order...'
-                            : `Pay ₹${grandTotal.toLocaleString('en-IN')}`}
+                            : createdOrderId
+                              ? `Retry Payment ₹${grandTotal.toLocaleString('en-IN')}`
+                              : `Pay ₹${grandTotal.toLocaleString('en-IN')}`}
                       </button>
                     </div>
                   </div>

@@ -54,14 +54,11 @@ async function create(req, res, next) {
       }
     }
 
-    // Create the order
+    // Create the order (do NOT clear cart yet — cleared after payment confirmation)
     const order = await orderService.createOrder(req.user.id, addressId, cartItems, {
       shippingCharge: parseFloat(shippingCharge) || 0,
       taxRate: parseFloat(taxRate) || 0,
     });
-
-    // Clear the cart after successful order creation
-    await cartService.clearCart(req.user.id);
 
     res.status(201).json({
       success: true,

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const razorpay = require('../config/razorpay');
 const { supabaseAdmin } = require('../config/supabase');
 const { RAZORPAY_KEY_SECRET } = require('../config/env');
+const cartService = require('./cart.service');
 
 /**
  * Payment Service
@@ -126,6 +127,20 @@ async function verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignatu
 
   if (orderUpdateErr) throw orderUpdateErr;
 
+  // Clear the user's cart after successful payment
+  try {
+    const { data: orderRow } = await supabaseAdmin
+      .from('orders')
+      .select('user_id')
+      .eq('id', payment.order_id)
+      .single();
+    if (orderRow?.user_id) {
+      await cartService.clearCart(orderRow.user_id);
+    }
+  } catch (_e) {
+    // Non-fatal — order is already confirmed
+  }
+
   // Fetch updated order
   const { data: order, error: orderErr } = await supabaseAdmin
     .from('orders')
@@ -221,6 +236,20 @@ async function _handlePaymentCaptured(paymentEntity) {
       .from('orders')
       .update({ payment_status: 'paid', order_status: 'confirmed' })
       .eq('id', paymentRow.order_id);
+
+    // Clear the user's cart after successful payment
+    try {
+      const { data: orderRow } = await supabaseAdmin
+        .from('orders')
+        .select('user_id')
+        .eq('id', paymentRow.order_id)
+        .single();
+      if (orderRow?.user_id) {
+        await cartService.clearCart(orderRow.user_id);
+      }
+    } catch (_e) {
+      // Non-fatal
+    }
   }
 }
 

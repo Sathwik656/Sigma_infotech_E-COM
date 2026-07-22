@@ -152,17 +152,36 @@ async function getRelated(req, res, next) {
 }
 
 /**
+ * Whitelist of columns that actually exist in the products table.
+ * Prevents Supabase errors when frontend sends non-existent fields
+ * (e.g. price_formatted, brand name strings, etc.)
+ */
+const PRODUCT_COLUMNS = [
+  'name', 'slug', 'description', 'specs_short',
+  'price', 'price_old', 'sku', 'stock',
+  'brand_id', 'category_id', 'condition',
+  'grade', 'grade_class', 'icon_type',
+  'status', 'featured', 'tags', 'specifications',
+  'thumbnail_url', 'images',
+];
+
+/**
  * POST /api/products
  * Admin only — create a new product.
  *
- * Body: { slug, name, brand, description, specs_short, sku, price,
- *         price_formatted, price_old, price_old_formatted, category,
+ * Body: { slug, name, description, specs_short, sku, price,
+ *         price_old, category_id, brand_id,
  *         condition, grade, grade_class, icon_type, stock, featured,
  *         specifications, tags, status }
  */
 async function create(req, res, next) {
   try {
-    const product = await productService.createProduct(req.body);
+    const safePayload = {};
+    for (const key of PRODUCT_COLUMNS) {
+      if (req.body[key] !== undefined) safePayload[key] = req.body[key];
+    }
+
+    const product = await productService.createProduct(safePayload);
 
     return res.status(201).json({
       success: true,
@@ -189,7 +208,12 @@ async function update(req, res, next) {
   try {
     const { id } = req.params;
 
-    const product = await productService.updateProduct(id, req.body);
+    const safePayload = {};
+    for (const key of PRODUCT_COLUMNS) {
+      if (req.body[key] !== undefined) safePayload[key] = req.body[key];
+    }
+
+    const product = await productService.updateProduct(id, safePayload);
 
     if (!product) {
       return res.status(404).json({

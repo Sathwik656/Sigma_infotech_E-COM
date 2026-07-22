@@ -60,19 +60,22 @@ export default function Header() {
         </Link>
 
         <nav className={`main-nav${navOpen ? ' open' : ''}`} id="main-nav">
-          <Link href="/" className={isActive('/') && pathname === '/' ? 'active' : ''}>
-            Home
-          </Link>
-          <Link href="/shop" className={isActive('/shop') ? 'active' : ''}>
-            Shop
-          </Link>
-          <Link href="/contact" className={isActive('/contact') ? 'active' : ''}>
-            Contact &amp; Repair
-          </Link>
-          {isAdmin && (
+          {isAdmin ? (
             <Link href="/admin/dashboard" className={isActive('/admin') ? 'active' : ''}>
-              Admin
+              Admin Dashboard
             </Link>
+          ) : (
+            <>
+              <Link href="/" className={isActive('/') && pathname === '/' ? 'active' : ''}>
+                Home
+              </Link>
+              <Link href="/shop" className={isActive('/shop') ? 'active' : ''}>
+                Shop
+              </Link>
+              <Link href="/contact" className={isActive('/contact') ? 'active' : ''}>
+                Contact &amp; Repair
+              </Link>
+            </>
           )}
         </nav>
 
@@ -106,15 +109,17 @@ export default function Header() {
             )
           )}
 
-          {/* ── Cart ───────────────────────────────────── */}
-          <Link href="/cart" className="icon-btn" aria-label="Cart">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h7.2a2 2 0 0 0 2-1.6L20 7H6" />
-              <circle cx="9" cy="20" r="1.4" />
-              <circle cx="17" cy="20" r="1.4" />
-            </svg>
-            <span className="cart-count">{itemCount || ''}</span>
-          </Link>
+          {/* ── Cart (hidden for admins) ────────────────── */}
+          {!isAdmin && (
+            <Link href="/cart" className="icon-btn" aria-label="Cart">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h7.2a2 2 0 0 0 2-1.6L20 7H6" />
+                <circle cx="9" cy="20" r="1.4" />
+                <circle cx="17" cy="20" r="1.4" />
+              </svg>
+              <span className="cart-count">{itemCount || ''}</span>
+            </Link>
+          )}
 
           <button
             className="nav-toggle"

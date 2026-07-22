@@ -157,4 +157,78 @@ async function refreshSession(refreshToken) {
   };
 }
 
-module.exports = { registerUser, loginUser, logoutUser, getCurrentUser, refreshSession };
+/**
+ * Complete the OAuth login flow.
+ * Receives a Supabase access_token from an OAuth provider (Google, etc.),
+ * verifies it, ensures a public.users row exists, and returns tokens.
+ *
+ * @param {string} accessToken - JWT from Supabase after OAuth redirect
+ * @returns {{ user, access_token, refresh_token, expires_in }}
+ * @throws Error if token is invalid
+ */
+async function oauthLoginUser(accessToken) {
+  // Verify the token and get the Supabase auth user
+  const { data: { user }, error: getUserError } = await supabaseAdmin.auth.getUser(accessToken);
+  if (getUserError || !user) {
+    throw getUserError || new Error('Invalid or expired OAuth token');
+  }
+
+  // Extract name from user metadata (Google sets full_name, email, avatar_url)
+  const fullName = user.user_metadata?.full_name
+    || user.user_metadata?.name
+    || user.email?.split('@')[0]
+    || '';
+  const avatar = user.user_metadata?.avatar_url || null;
+
+  // Look up or create the public.users row
+  let userRow = null;
+  try {
+    userRow = await userService.getByAuthUserId(user.id);
+  } catch {
+    // Not found — will create below
+  }
+
+  if (!userRow) {
+    try {
+      userRow = await userService.createUser({
+        authUserId: user.id,
+        email: user.email,
+        fullName,
+      });
+    } catch (err) {
+      if (err.code === '23505') {
+        // Race condition — another request created it. Fetch it.
+        userRow = await userService.getByAuthUserId(user.id);
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  // If the user exists but their name or avatar is missing, update it
+  if (userRow && avatar && !userRow.avatar) {
+    try {
+      await userService.updateUser(userRow.id, { avatar });
+    } catch {
+      // Non-critical — ignore
+    }
+  }
+
+  return {
+    user: {
+      id: userRow?.id || user.id,
+      authUserId: user.id,
+      email: user.email,
+      name: fullName,
+      role: userRow?.role || 'customer',
+      createdAt: user.created_at,
+    },
+    access_token: accessToken,
+    // OAuth tokens: the caller needs to use the original tokens.
+    // We return them as-is since they're valid Supabase JWTs.
+    refresh_token: null,
+    expires_in: null,
+  };
+}
+
+module.exports = { registerUser, loginUser, logoutUser, getCurrentUser, refreshSession, oauthLoginUser };

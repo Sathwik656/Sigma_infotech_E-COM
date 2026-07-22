@@ -61,4 +61,7 @@ router.get('/me', authenticate, authController.getMe);
 // POST /api/auth/refresh
 router.post('/refresh', authController.refresh);
 
+// POST /api/auth/oauth  (OAuth callback — no validation rules, token verified server-side)
+router.post('/oauth', authController.oauthLogin);
+
 module.exports = router;

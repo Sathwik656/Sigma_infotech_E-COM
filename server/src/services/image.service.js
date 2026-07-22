@@ -104,7 +104,7 @@ async function deleteImage(imageId) {
   // Get the image record first
   const { data: image, error: fetchError } = await supabaseAdmin
     .from('product_images')
-    .select('id, product_id, public_id, is_primary, url')
+    .select('id, product_id, is_primary, url')
     .eq('id', imageId)
     .single();
 

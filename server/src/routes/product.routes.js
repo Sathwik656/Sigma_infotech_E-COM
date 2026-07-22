@@ -37,10 +37,6 @@ const createProductRules = [
   body('price')
     .isFloat({ min: 0 }).withMessage('price must be a positive number'),
 
-  body('price_formatted')
-    .trim()
-    .notEmpty().withMessage('price_formatted is required'),
-
   body('category')
     .isIn(['laptop', 'desktop', 'printer', 'accessory', 'other'])
     .withMessage('category must be one of: laptop, desktop, printer, accessory, other'),

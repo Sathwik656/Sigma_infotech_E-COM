@@ -70,7 +70,7 @@ export default function ProductEditPage() {
           stock: p.stock ?? '',
           brand: typeof p.brand === 'string' ? p.brand : p.brand?.name || '',
           brand_id: p.brand_id || '',
-          category: p.category || 'laptop',
+          category: typeof p.category === 'object' ? (p.category?.slug || p.category?.name || 'laptop') : (p.category || 'laptop'),
           category_id: p.category_id || '',
           condition: p.condition || 'excellent',
           grade: p.grade || '',

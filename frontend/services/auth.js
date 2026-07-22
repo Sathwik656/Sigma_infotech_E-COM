@@ -52,3 +52,14 @@ export async function refreshToken(refreshToken) {
   });
   return response.data;
 }
+
+/**
+ * Complete OAuth login by sending the Supabase access_token to the backend.
+ * @param {string} accessToken - Supabase JWT from OAuth redirect
+ */
+export async function oauthLogin(accessToken) {
+  const response = await axiosInstance.post('/api/auth/oauth', {
+    access_token: accessToken,
+  });
+  return response.data;
+}
