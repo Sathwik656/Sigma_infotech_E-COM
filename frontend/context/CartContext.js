@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as cartService from '@/services/cartService';
 import { useAuth } from './AuthContext';
 
@@ -25,6 +25,12 @@ function clearGuestCart() {
   localStorage.removeItem(GUEST_CART_KEY);
 }
 
+function computeTotals(items) {
+  const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
+  const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  return { itemCount, total: parseFloat(total.toFixed(2)) };
+}
+
 export function CartProvider({ children }) {
   const { isAuthenticated } = useAuth();
   const [items, setItems] = useState([]);
@@ -35,6 +41,7 @@ export function CartProvider({ children }) {
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '' });
+  const reconcilingRef = useRef(false);
 
   const showToast = useCallback((message) => {
     setToast({ visible: true, message });
@@ -42,39 +49,68 @@ export function CartProvider({ children }) {
   }, []);
 
   /* ----------------------------------------------------
-     Fetch cart from backend
+     Parse backend cart response into flat items
+     ---------------------------------------------------- */
+  const parseCartResponse = useCallback((data) => {
+    const payload = data.data || data;
+    const rawItems = payload.items || payload.cart?.items || [];
+    const cartItems = rawItems.map((ci) => {
+      const p = ci.product || {};
+      return {
+        id: ci.id,
+        productId: ci.product_id || p.id,
+        name: p.name || ci.name || '',
+        brand: p.brand || ci.brand || '',
+        image: p.thumbnail_url || (p.images?.find?.((img) => img.is_primary)?.url) || ci.image || '',
+        price: ci.price_at_time ?? p.price ?? ci.price ?? 0,
+        quantity: ci.quantity || 0,
+      };
+    });
+    return {
+      items: cartItems,
+      cart: payload.cart || payload,
+    };
+  }, []);
+
+  /* ----------------------------------------------------
+     Fetch cart from backend (for initial load & reconciliation)
      ---------------------------------------------------- */
   const fetchCart = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await cartService.getCart();
-      // Backend returns { success, data: { cart, items } } — unwrap .data
-      const payload = data.data || data;
-      const rawItems = payload.items || payload.cart?.items || [];
-      // Normalize backend cart items to flat structure the UI expects
-      const cartItems = rawItems.map((ci) => {
-        const p = ci.product || {};
-        return {
-          id: ci.id,
-          productId: ci.product_id || p.id,
-          name: p.name || ci.name || '',
-          brand: p.brand || ci.brand || '',
-          image: p.thumbnail_url || (p.images?.find((img) => img.is_primary)?.url) || ci.image || '',
-          price: ci.price_at_time ?? p.price ?? ci.price ?? 0,
-          quantity: ci.quantity || 0,
-        };
-      });
+      const { items: cartItems, cart } = parseCartResponse(data);
       setItems(cartItems);
-      setTotal(payload.cart?.subtotal ?? payload.total ?? 0);
-      setItemCount(payload.cart?.item_count ?? payload.itemCount ?? 0);
-      setCartId(payload.cart?.id ?? payload.id ?? null);
+      setTotal(cart.subtotal ?? 0);
+      setItemCount(cart.item_count ?? 0);
+      setCartId(cart.id ?? null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch cart');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [parseCartResponse]);
+
+  /* ----------------------------------------------------
+     Background reconciliation — silently sync state with server
+     ---------------------------------------------------- */
+  const reconcileCart = useCallback(async () => {
+    if (reconcilingRef.current) return;
+    reconcilingRef.current = true;
+    try {
+      const data = await cartService.getCart();
+      const { items: serverItems, cart } = parseCartResponse(data);
+      setItems(serverItems);
+      setTotal(cart.subtotal ?? 0);
+      setItemCount(cart.item_count ?? 0);
+      setCartId(cart.id ?? null);
+    } catch {
+      // Non-critical — ignore reconciliation errors
+    } finally {
+      reconcilingRef.current = false;
+    }
+  }, [parseCartResponse]);
 
   /* ----------------------------------------------------
      Load cart on mount / when auth state changes
@@ -85,8 +121,9 @@ export function CartProvider({ children }) {
     } else {
       const guestItems = loadGuestCart();
       setItems(guestItems);
-      setTotal(guestItems.reduce((sum, item) => sum + item.price * item.quantity, 0));
-      setItemCount(guestItems.reduce((sum, item) => sum + item.quantity, 0));
+      const { itemCount: count, total: tot } = computeTotals(guestItems);
+      setTotal(tot);
+      setItemCount(count);
       setCartId(null);
       setInitialized(true);
     }
@@ -103,7 +140,6 @@ export function CartProvider({ children }) {
     }
 
     try {
-      setLoading(true);
       for (const item of guestItems) {
         const productId = item.id || item.productId;
         if (productId) {
@@ -114,50 +150,71 @@ export function CartProvider({ children }) {
       await fetchCart();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to sync cart');
-    } finally {
-      setLoading(false);
     }
   }, [fetchCart]);
 
   /* ----------------------------------------------------
-     addItem
+     addItem — optimistic
      ---------------------------------------------------- */
   const addItem = useCallback(async (product, quantity = 1) => {
     setError(null);
+    const productId = product.id || product.productId;
 
     if (!isAuthenticated) {
       setItems((prev) => {
-        const existing = prev.find((item) => item.id === product.id);
+        const existing = prev.find((item) => item.id === productId || item.productId === productId);
         const updated = existing
           ? prev.map((item) =>
-              item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
+              (item.id === productId || item.productId === productId)
+                ? { ...item, quantity: item.quantity + quantity }
+                : item
             )
-          : [...prev, { ...product, quantity }];
+          : [...prev, { ...product, id: productId, productId, quantity }];
         saveGuestCart(updated);
-        setTotal(updated.reduce((sum, i) => sum + i.price * i.quantity, 0));
-        setItemCount(updated.reduce((sum, i) => sum + i.quantity, 0));
+        const { itemCount: count, total: tot } = computeTotals(updated);
+        setTotal(tot);
+        setItemCount(count);
         return updated;
       });
       return { success: true };
     }
 
+    // Optimistic: add item to UI immediately
+    const tempId = `temp-${Date.now()}`;
+    const optimisticItem = {
+      id: tempId,
+      productId,
+      name: product.name || '',
+      brand: product.brand || '',
+      image: product.image || product.thumbnail_url || '',
+      price: product.price || 0,
+      quantity,
+    };
+
+    setItems((prev) => {
+      const existing = prev.find((i) => i.productId === productId);
+      const updated = existing
+        ? prev.map((i) => i.productId === productId ? { ...i, quantity: i.quantity + quantity } : i)
+        : [...prev, optimisticItem];
+      const { itemCount: count, total: tot } = computeTotals(updated);
+      setTotal(tot);
+      setItemCount(count);
+      return updated;
+    });
+
     try {
-      setLoading(true);
-      await cartService.addItem({ productId: product.id || product.productId, quantity });
-      try {
-        await fetchCart();
-      } catch (_fetchErr) {
-        // Item was added successfully even if fetchCart failed
-      }
+      await cartService.addItem({ productId, quantity });
+      // Reconcile in background to get server-assigned IDs and accurate prices
+      reconcileCart();
       return { success: true };
     } catch (err) {
+      // Revert optimistic update
+      await fetchCart();
       const message = err.response?.data?.message || 'Failed to add item to cart';
       setError(message);
       return { success: false, message };
-    } finally {
-      setLoading(false);
     }
-  }, [isAuthenticated, fetchCart]);
+  }, [isAuthenticated, fetchCart, reconcileCart]);
 
   /* ----------------------------------------------------
      addToCart (wrapper that also shows toast)
@@ -171,7 +228,7 @@ export function CartProvider({ children }) {
   }, [addItem, showToast]);
 
   /* ----------------------------------------------------
-     removeItem
+     removeItem — optimistic
      ---------------------------------------------------- */
   const removeItem = useCallback(async (itemId) => {
     setError(null);
@@ -180,29 +237,40 @@ export function CartProvider({ children }) {
       setItems((prev) => {
         const updated = prev.filter((item) => item.id !== itemId);
         saveGuestCart(updated);
-        setTotal(updated.reduce((sum, i) => sum + i.price * i.quantity, 0));
-        setItemCount(updated.reduce((sum, i) => sum + i.quantity, 0));
+        const { itemCount: count, total: tot } = computeTotals(updated);
+        setTotal(tot);
+        setItemCount(count);
         return updated;
       });
       return { success: true };
     }
 
+    // Optimistic: remove item from UI immediately
+    let removedItem = null;
+    setItems((prev) => {
+      removedItem = prev.find((i) => i.id === itemId);
+      const updated = prev.filter((i) => i.id !== itemId);
+      const { itemCount: count, total: tot } = computeTotals(updated);
+      setTotal(tot);
+      setItemCount(count);
+      return updated;
+    });
+
     try {
-      setLoading(true);
       await cartService.removeItem(itemId);
-      await fetchCart();
+      reconcileCart();
       return { success: true };
     } catch (err) {
+      // Revert
+      await fetchCart();
       const message = err.response?.data?.message || 'Failed to remove item';
       setError(message);
       return { success: false, message };
-    } finally {
-      setLoading(false);
     }
-  }, [isAuthenticated, fetchCart]);
+  }, [isAuthenticated, fetchCart, reconcileCart]);
 
   /* ----------------------------------------------------
-     updateQuantity
+     updateQuantity — optimistic
      ---------------------------------------------------- */
   const updateQuantity = useCallback(async (itemId, quantity) => {
     if (quantity < 1) return { success: false, message: 'Quantity must be at least 1' };
@@ -214,26 +282,37 @@ export function CartProvider({ children }) {
           item.id === itemId ? { ...item, quantity } : item
         );
         saveGuestCart(updated);
-        setTotal(updated.reduce((sum, i) => sum + i.price * i.quantity, 0));
-        setItemCount(updated.reduce((sum, i) => sum + i.quantity, 0));
+        const { itemCount: count, total: tot } = computeTotals(updated);
+        setTotal(tot);
+        setItemCount(count);
         return updated;
       });
       return { success: true };
     }
 
+    // Optimistic: update quantity immediately
+    setItems((prev) => {
+      const updated = prev.map((item) =>
+        item.id === itemId ? { ...item, quantity } : item
+      );
+      const { itemCount: count, total: tot } = computeTotals(updated);
+      setTotal(tot);
+      setItemCount(count);
+      return updated;
+    });
+
     try {
-      setLoading(true);
       await cartService.updateItemQuantity(itemId, { quantity });
-      await fetchCart();
+      reconcileCart();
       return { success: true };
     } catch (err) {
+      // Revert
+      await fetchCart();
       const message = err.response?.data?.message || 'Failed to update quantity';
       setError(message);
       return { success: false, message };
-    } finally {
-      setLoading(false);
     }
-  }, [isAuthenticated, fetchCart]);
+  }, [isAuthenticated, fetchCart, reconcileCart]);
 
   /* ----------------------------------------------------
      clearCart
@@ -249,22 +328,23 @@ export function CartProvider({ children }) {
       return { success: true };
     }
 
+    // Optimistic: clear immediately
+    setItems([]);
+    setTotal(0);
+    setItemCount(0);
+
     try {
-      setLoading(true);
       await cartService.clearCart();
-      setItems([]);
-      setTotal(0);
-      setItemCount(0);
       setCartId(null);
       return { success: true };
     } catch (err) {
+      // Revert
+      await fetchCart();
       const message = err.response?.data?.message || 'Failed to clear cart';
       setError(message);
       return { success: false, message };
-    } finally {
-      setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchCart]);
 
   const value = useMemo(() => ({
     items,

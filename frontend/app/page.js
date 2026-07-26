@@ -246,32 +246,29 @@ export default function HomePage() {
               <h2>Find us at Pumpwell Circle</h2>
             </div>
           </div>
-          <div className="map-card-container">
-            <div className="map-embed">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d243.09938408613016!2d74.86454932576028!3d12.869727654707757!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ba35b8c5790749b%3A0xd37d456d09139830!2sSigma%20Infotech!5e0!3m2!1sen!2sin!4v1783344884187!5m2!1sen!2sin"
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="strict-origin-when-cross-origin"
-                title="Sigma Infotech location map"
-              />
-            </div>
-            <div className="map-card-details">
-              <h3>Sigma Infotech</h3>
-              <p>Pumpwell Circle, Mangalore, Karnataka</p>
-              <a
-                href="https://www.google.com/maps/place/Sigma+Infotech/@12.8693502,74.8643227,20z/data=!4m6!3m5!1s0x3ba35b8c5790749b:0xd37d456d09139830!8m2!3d12.8696402!4d74.8643814!16s%2Fg%2F11w8s6hg97"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-map-solid"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13"></line>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-                GET DIRECTIONS
-              </a>
-            </div>
+          <div className="map-neat-container">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d243.09938408613016!2d74.86454932576028!3d12.869727654707757!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ba35b8c5790749b%3A0xd37d456d09139830!2sSigma%20Infotech!5e0!3m2!1sen!2sin!4v1783344884187!5m2!1sen!2sin"
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              title="Sigma Infotech location map"
+            />
+          </div>
+          <div className="map-actions-below">
+            <a
+              href="https://www.google.com/maps/place/Sigma+Infotech/@12.8693502,74.8643227,20z/data=!4m6!3m5!1s0x3ba35b8c5790749b:0xd37d456d09139830!8m2!3d12.8696402!4d74.8643814!16s%2Fg%2F11w8s6hg97"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline btn-sm"
+              title="Get Directions"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+              Get Directions
+            </a>
           </div>
         </div>
       </section>
