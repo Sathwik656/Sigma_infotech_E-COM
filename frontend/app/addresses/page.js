@@ -44,9 +44,9 @@ export default function AddressesPage() {
   const fetchAddresses = useCallback(async () => {
     try {
       setLoading(true);
-      setError('');
       const data = await addressService.list();
       setAddresses(data.addresses || data || []);
+      setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load addresses');
     } finally {
@@ -56,9 +56,27 @@ export default function AddressesPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchAddresses();
+      let active = true;
+      addressService.list()
+        .then((data) => {
+          if (active) {
+            setAddresses(data.addresses || data || []);
+            setError('');
+          }
+        })
+        .catch((err) => {
+          if (active) {
+            setError(err.response?.data?.message || 'Failed to load addresses');
+          }
+        })
+        .finally(() => {
+          if (active) {
+            setLoading(false);
+          }
+        });
+      return () => { active = false; };
     }
-  }, [isAuthenticated, fetchAddresses]);
+  }, [isAuthenticated]);
 
   const validateForm = () => {
     const errs = {};
